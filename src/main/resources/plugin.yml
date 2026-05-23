@@ -5,11 +5,6 @@ api: "${pluginApiVersion}"
 load: POSTWORLD
 author: ${pluginAuthor}
 description: High level NPC API and plugin for PowerNukkitX.
-commands:
-  npcs:
-    description: Manage NPCs
-    usage: "/npcs"
-    permission: npcs.command.use
 permissions:
   npcs.command.use:
     default: op
