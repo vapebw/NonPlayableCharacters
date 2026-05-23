@@ -48,4 +48,27 @@ public class NpcProfileTest {
         assertEquals("greeter", updated.metadata().get("role"));
         assertEquals("spawn", updated.metadata().get("scene"));
     }
+
+    @Test
+    public void switchesIntoMobWithoutLosingMetadata() {
+        NpcProfile profile = new NpcProfile(
+                "guard",
+                "Guard",
+                NpcEntityType.NPC,
+                new NpcLocation("spawn", 0.0, 64.0, 0.0, 0.0f, 0.0f),
+                NpcVisualProfile.empty(),
+                NpcFlags.defaults(),
+                Map.of(),
+                Set.of(),
+                Map.of("role", "gate")
+        );
+
+        NpcProfile updated = profile
+                .withEntityType(NpcEntityType.MOB)
+                .withMetadata("mobType", "zombie");
+
+        assertEquals(NpcEntityType.MOB, updated.entityType());
+        assertEquals("gate", updated.metadata().get("role"));
+        assertEquals("zombie", updated.metadata().get("mobType"));
+    }
 }

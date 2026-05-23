@@ -56,6 +56,29 @@ public class DefaultNpcRegistryTest {
     }
 
     @Test
+    public void storesMobTypeMetadataWhenNpcBecomesMob() throws IOException {
+        InMemoryRepository repository = new InMemoryRepository();
+        DefaultNpcRegistry registry = new DefaultNpcRegistry(
+                repository,
+                new SimpleFactory(),
+                new NpcTraitRegistry(),
+                new NpcBehaviorRegistry(),
+                new NpcInteractionRegistry(),
+                new NoopNpcRuntime()
+        );
+
+        registry.create("guard", "Guard", new NpcLocation("spawn", 1.0, 65.0, 1.0, 0.0f, 0.0f));
+        registry.changeType("guard", NpcEntityType.MOB);
+        registry.setMetadata("guard", "mobType", "zombie");
+        registry.saveAll();
+
+        NpcProfile profile = repository.saved.get("guard");
+
+        assertEquals(NpcEntityType.MOB, profile.entityType());
+        assertEquals("zombie", profile.metadata().get("mobType"));
+    }
+
+    @Test
     public void rejectsDuplicateNpcIds() {
         InMemoryRepository repository = new InMemoryRepository();
         DefaultNpcRegistry registry = new DefaultNpcRegistry(

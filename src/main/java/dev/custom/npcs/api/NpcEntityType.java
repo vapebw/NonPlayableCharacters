@@ -2,7 +2,8 @@ package dev.custom.npcs.api;
 
 public enum NpcEntityType {
     NPC("npc"),
-    HUMAN("human");
+    HUMAN("human"),
+    MOB("mob");
 
     private final String id;
 

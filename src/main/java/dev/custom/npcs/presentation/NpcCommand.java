@@ -13,6 +13,7 @@ import dev.custom.npcs.api.NpcHandle;
 import dev.custom.npcs.api.NpcLocation;
 import dev.custom.npcs.domain.NpcBehaviorRegistry;
 import dev.custom.npcs.domain.NpcTraitRegistry;
+import dev.custom.npcs.infrastructure.MobCatalog;
 import dev.custom.npcs.infrastructure.NpcSkinCodec;
 import dev.custom.npcs.application.DefaultNpcRegistry;
 
@@ -45,7 +46,7 @@ public final class NpcCommand extends Command {
             return true;
         }
         if (args.length == 0) {
-            sender.sendMessage("/npcs create <id> [displayName]");
+            sender.sendMessage("/npcs create <id> [type] [displayName]");
             sender.sendMessage("/npcs remove <id>");
             sender.sendMessage("/npcs spawn <id>");
             sender.sendMessage("/npcs despawn <id>");
@@ -55,7 +56,8 @@ public final class NpcCommand extends Command {
             sender.sendMessage("/npcs list");
             sender.sendMessage("/npcs info <id>");
             sender.sendMessage("/npcs select <id>");
-            sender.sendMessage("/npcs type <id> <npc|human>");
+            sender.sendMessage("/npcs type <id> <npc|human|mob>");
+            sender.sendMessage("/npcs mob <id> <mobType>");
             sender.sendMessage("/npcs skin from-player <id> [player]");
             sender.sendMessage("/npcs skin from-file <id> <path>");
             sender.sendMessage("/npcs trait set <id> <trait> <value>");
@@ -75,6 +77,7 @@ public final class NpcCommand extends Command {
                 case "info" -> info(sender, args);
                 case "select" -> select(sender, args);
                 case "type" -> type(sender, args);
+                case "mob" -> mob(sender, args);
                 case "skin" -> skin(sender, args);
                 case "trait" -> trait(sender, args);
                 case "behavior" -> behavior(sender, args);
@@ -92,15 +95,27 @@ public final class NpcCommand extends Command {
     private boolean create(CommandSender sender, String[] args) {
         Player player = requirePlayer(sender);
         if (args.length < 2) {
-            sender.sendMessage("Uso: /npcs create <id> [displayName]");
+            sender.sendMessage("Uso: /npcs create <id> [type] [displayName]");
             return true;
         }
         String id = args[1];
-        String displayName = args.length >= 3 ? join(args, 2) : id;
+        int nameIndex = 2;
+        NpcEntityType entityType = NpcEntityType.NPC;
+        if (args.length >= 3 && isEntityType(args[2])) {
+            entityType = NpcEntityType.parse(args[2]);
+            nameIndex = 3;
+        }
+        String displayName = args.length > nameIndex ? join(args, nameIndex) : id;
         registry.create(id, displayName, fromPlayer(player));
+        if (entityType != NpcEntityType.NPC) {
+            registry.changeType(id, entityType);
+        }
+        if (entityType == NpcEntityType.MOB) {
+            registry.setMetadata(id, "mobType", MobCatalog.defaultMobType());
+        }
         registry.spawn(id);
         selectionContext.select(player.getUniqueId(), id);
-        sender.sendMessage("NPC creado: " + id);
+        sender.sendMessage("NPC creado: " + id + " [" + entityType.id() + "]");
         return true;
     }
 
@@ -188,6 +203,9 @@ public final class NpcCommand extends Command {
         sender.sendMessage("id: " + handle.profile().id());
         sender.sendMessage("name: " + handle.profile().displayName());
         sender.sendMessage("type: " + handle.profile().entityType().id());
+        if (handle.profile().entityType() == NpcEntityType.MOB) {
+            sender.sendMessage("mob: " + handle.profile().metadata().getOrDefault("mobType", MobCatalog.defaultMobType()));
+        }
         sender.sendMessage("world: " + handle.profile().location().world());
         sender.sendMessage("spawned: " + handle.spawned());
         sender.sendMessage("visual: " + handle.profile().visual().skinId());
@@ -220,17 +238,37 @@ public final class NpcCommand extends Command {
 
     private boolean type(CommandSender sender, String[] args) {
         Player player = sender instanceof Player value ? value : null;
-        String id = resolveId(player, args, 1, "Uso: /npcs type <id> <npc|human>");
+        String id = resolveId(player, args, 1, "Uso: /npcs type <id> <npc|human|mob>");
         if (id == null) {
             return true;
         }
         if (args.length < 3) {
-            sender.sendMessage("Uso: /npcs type <id> <npc|human>");
+            sender.sendMessage("Uso: /npcs type <id> <npc|human|mob>");
             return true;
         }
         NpcEntityType entityType = NpcEntityType.parse(args[2]);
         registry.changeType(id, entityType);
+        if (entityType == NpcEntityType.MOB) {
+            registry.setMetadata(id, "mobType", registry.profile(id).metadata().getOrDefault("mobType", MobCatalog.defaultMobType()));
+        }
         sender.sendMessage("Tipo actualizado para: " + id + " -> " + entityType.id());
+        return true;
+    }
+
+    private boolean mob(CommandSender sender, String[] args) {
+        Player player = sender instanceof Player value ? value : null;
+        String id = resolveId(player, args, 1, "Uso: /npcs mob <id> <mobType>");
+        if (id == null) {
+            return true;
+        }
+        if (args.length < 3) {
+            sender.sendMessage("Uso: /npcs mob <id> <mobType>");
+            return true;
+        }
+        String mobType = MobCatalog.normalize(args[2]);
+        registry.changeType(id, NpcEntityType.MOB);
+        registry.setMetadata(id, "mobType", mobType);
+        sender.sendMessage("Mob actualizado para: " + id + " -> " + mobType);
         return true;
     }
 
@@ -352,6 +390,7 @@ public final class NpcCommand extends Command {
 
     private void configureAutocomplete() {
         Supplier<java.util.Collection<String>> ids = () -> registry.all().stream().map(handle -> handle.profile().id()).toList();
+        Supplier<java.util.Collection<String>> mobs = MobCatalog::all;
         Supplier<java.util.Collection<String>> behaviors = () -> {
             java.util.List<String> values = new java.util.ArrayList<>();
             for (NpcBehavior behavior : behaviorRegistry.all()) {
@@ -369,6 +408,7 @@ public final class NpcCommand extends Command {
         addCommandParameters("create", new CommandParameter[]{
                 CommandParameter.newEnum("create", new String[]{"create"}),
                 CommandParameter.newType("id", cn.nukkit.command.data.CommandParamType.STRING),
+                CommandParameter.newEnum("entityType", true, new String[]{"npc", "human", "mob"}),
                 CommandParameter.newType("displayName", true, cn.nukkit.command.data.CommandParamType.TEXT)
         });
         addCommandParameters("remove", new CommandParameter[]{
@@ -410,7 +450,12 @@ public final class NpcCommand extends Command {
         addCommandParameters("type", new CommandParameter[]{
                 CommandParameter.newEnum("type", new String[]{"type"}),
                 CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
-                CommandParameter.newEnum("entityType", new String[]{"npc", "human"})
+                CommandParameter.newEnum("entityType", new String[]{"npc", "human", "mob"})
+        });
+        addCommandParameters("mob", new CommandParameter[]{
+                CommandParameter.newEnum("mob", new String[]{"mob"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newEnum("mobType", false, new CommandEnum("npcMobTypes", mobs))
         });
         addCommandParameters("skinPlayer", new CommandParameter[]{
                 CommandParameter.newEnum("skin", new String[]{"skin"}),
@@ -438,5 +483,14 @@ public final class NpcCommand extends Command {
                 CommandParameter.newEnum("behaviorKey", false, new CommandEnum("npcBehaviors", behaviors))
         });
         enableParamTree();
+    }
+
+    private boolean isEntityType(String value) {
+        try {
+            NpcEntityType.parse(value);
+            return true;
+        } catch (IllegalArgumentException ignored) {
+            return false;
+        }
     }
 }

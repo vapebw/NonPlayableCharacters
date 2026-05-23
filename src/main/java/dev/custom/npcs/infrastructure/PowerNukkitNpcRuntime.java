@@ -32,6 +32,7 @@ public final class PowerNukkitNpcRuntime implements NpcRuntime {
         this.interactionRegistry = interactionRegistry;
         register(new NpcEntityRuntime(plugin));
         register(new HumanEntityRuntime(plugin));
+        register(new MobEntityRuntime(plugin));
     }
 
     @Override
