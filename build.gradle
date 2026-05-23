@@ -1,0 +1,67 @@
+plugins {
+    id 'java'
+}
+
+group = findProperty('group')
+version = findProperty('version')
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+
+    withSourcesJar()
+    withJavadocJar()
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        name = 'powernukkitx-releases'
+        url = uri('https://repo.powernukkitx.org/releases')
+    }
+    maven {
+        name = 'powernukkitx-snapshots'
+        url = uri('https://repo.powernukkitx.org/snapshots')
+    }
+    maven {
+        name = 'opencollab-snapshots'
+        url = uri('https://repo.opencollab.dev/maven-snapshots')
+    }
+    maven {
+        name = 'jitpack'
+        url = uri('https://jitpack.io')
+    }
+}
+
+dependencies {
+    compileOnly 'org.powernukkitx:server:2.0.0-SNAPSHOT'
+    testImplementation 'org.powernukkitx:server:2.0.0-SNAPSHOT'
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.release = 21
+}
+
+tasks.named('processResources', ProcessResources) {
+    filteringCharset = 'UTF-8'
+    filesMatching(['plugin.yml']) {
+        expand(
+                pluginName: findProperty('pluginName'),
+                pluginVersion: project.version,
+                pluginMainClass: findProperty('pluginMainClass'),
+                pluginApiVersion: findProperty('pluginApiVersion'),
+                pluginAuthor: findProperty('pluginAuthor')
+        )
+    }
+}
+
+tasks.named('jar', Jar) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('test', Test) {
+    useJUnit()
+}
