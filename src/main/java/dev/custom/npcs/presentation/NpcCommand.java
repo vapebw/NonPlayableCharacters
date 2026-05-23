@@ -3,22 +3,40 @@ package dev.custom.npcs.presentation;
 import cn.nukkit.Player;
 import cn.nukkit.command.Command;
 import cn.nukkit.command.CommandSender;
+import cn.nukkit.command.data.CommandEnum;
+import cn.nukkit.command.data.CommandParameter;
 import cn.nukkit.level.Location;
+import cn.nukkit.plugin.PluginBase;
+import dev.custom.npcs.api.NpcBehavior;
+import dev.custom.npcs.api.NpcEntityType;
 import dev.custom.npcs.api.NpcHandle;
 import dev.custom.npcs.api.NpcLocation;
+import dev.custom.npcs.domain.NpcBehaviorRegistry;
+import dev.custom.npcs.domain.NpcTraitRegistry;
+import dev.custom.npcs.infrastructure.NpcSkinCodec;
 import dev.custom.npcs.application.DefaultNpcRegistry;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public final class NpcCommand extends Command {
+    private final PluginBase plugin;
     private final DefaultNpcRegistry registry;
+    private final NpcTraitRegistry traitRegistry;
+    private final NpcBehaviorRegistry behaviorRegistry;
     private final NpcSelectionContext selectionContext;
 
-    public NpcCommand(DefaultNpcRegistry registry, NpcSelectionContext selectionContext) {
+    public NpcCommand(PluginBase plugin, DefaultNpcRegistry registry, NpcTraitRegistry traitRegistry, NpcBehaviorRegistry behaviorRegistry, NpcSelectionContext selectionContext) {
         super("npcs", "Manage NPCs", "/npcs", new String[0]);
+        this.plugin = plugin;
         this.registry = registry;
+        this.traitRegistry = traitRegistry;
+        this.behaviorRegistry = behaviorRegistry;
         this.selectionContext = selectionContext;
         setPermission("npcs.command.use");
+        configureAutocomplete();
     }
 
     @Override
@@ -37,6 +55,9 @@ public final class NpcCommand extends Command {
             sender.sendMessage("/npcs list");
             sender.sendMessage("/npcs info <id>");
             sender.sendMessage("/npcs select <id>");
+            sender.sendMessage("/npcs type <id> <npc|human>");
+            sender.sendMessage("/npcs skin from-player <id> [player]");
+            sender.sendMessage("/npcs skin from-file <id> <path>");
             sender.sendMessage("/npcs trait set <id> <trait> <value>");
             sender.sendMessage("/npcs behavior add <id> <behavior>");
             return true;
@@ -53,12 +74,17 @@ public final class NpcCommand extends Command {
                 case "list" -> list(sender);
                 case "info" -> info(sender, args);
                 case "select" -> select(sender, args);
+                case "type" -> type(sender, args);
+                case "skin" -> skin(sender, args);
                 case "trait" -> trait(sender, args);
                 case "behavior" -> behavior(sender, args);
                 default -> unknown(sender);
             };
         } catch (IllegalArgumentException exception) {
             sender.sendMessage(exception.getMessage());
+            return true;
+        } catch (IOException exception) {
+            sender.sendMessage("No se pudo cargar el skin: " + exception.getMessage());
             return true;
         }
     }
@@ -161,8 +187,10 @@ public final class NpcCommand extends Command {
         NpcHandle handle = registry.find(args[1]).orElseThrow(() -> new IllegalArgumentException("NPC no encontrado: " + args[1]));
         sender.sendMessage("id: " + handle.profile().id());
         sender.sendMessage("name: " + handle.profile().displayName());
+        sender.sendMessage("type: " + handle.profile().entityType().id());
         sender.sendMessage("world: " + handle.profile().location().world());
         sender.sendMessage("spawned: " + handle.spawned());
+        sender.sendMessage("visual: " + handle.profile().visual().skinId());
         sender.sendMessage("traits: " + handle.profile().traits());
         sender.sendMessage("behaviors: " + handle.profile().behaviors());
         return true;
@@ -187,6 +215,79 @@ public final class NpcCommand extends Command {
         }
         registry.setTrait(args[2], args[3], args[4]);
         sender.sendMessage("Trait actualizado para: " + args[2]);
+        return true;
+    }
+
+    private boolean type(CommandSender sender, String[] args) {
+        Player player = sender instanceof Player value ? value : null;
+        String id = resolveId(player, args, 1, "Uso: /npcs type <id> <npc|human>");
+        if (id == null) {
+            return true;
+        }
+        if (args.length < 3) {
+            sender.sendMessage("Uso: /npcs type <id> <npc|human>");
+            return true;
+        }
+        NpcEntityType entityType = NpcEntityType.parse(args[2]);
+        registry.changeType(id, entityType);
+        sender.sendMessage("Tipo actualizado para: " + id + " -> " + entityType.id());
+        return true;
+    }
+
+    private boolean skin(CommandSender sender, String[] args) throws IOException {
+        if (args.length < 2) {
+            sender.sendMessage("Uso: /npcs skin <from-player|from-file> ...");
+            return true;
+        }
+        return switch (args[1].toLowerCase()) {
+            case "from-player" -> skinFromPlayer(sender, args);
+            case "from-file" -> skinFromFile(sender, args);
+            default -> {
+                sender.sendMessage("Uso: /npcs skin <from-player|from-file> ...");
+                yield true;
+            }
+        };
+    }
+
+    private boolean skinFromPlayer(CommandSender sender, String[] args) {
+        Player commandPlayer = sender instanceof Player value ? value : null;
+        String id = resolveId(commandPlayer, args, 2, "Uso: /npcs skin from-player <id> [player]");
+        if (id == null) {
+            return true;
+        }
+        Player source;
+        if (args.length >= 4) {
+            source = sender.getServer().getPlayerExact(args[3]);
+            if (source == null) {
+                throw new IllegalArgumentException("Jugador no encontrado: " + args[3]);
+            }
+        } else {
+            source = requirePlayer(sender);
+        }
+        registry.changeType(id, NpcEntityType.HUMAN);
+        registry.updateVisual(id, NpcSkinCodec.fromSkin(source.getSkin(), "player:" + source.getName().toLowerCase()));
+        registry.setMetadata(id, "skinSource", "player");
+        registry.setMetadata(id, "skinOwner", source.getName());
+        sender.sendMessage("Skin aplicada desde jugador a: " + id);
+        return true;
+    }
+
+    private boolean skinFromFile(CommandSender sender, String[] args) throws IOException {
+        Player player = sender instanceof Player value ? value : null;
+        String id = resolveId(player, args, 2, "Uso: /npcs skin from-file <id> <path>");
+        if (id == null) {
+            return true;
+        }
+        if (args.length < 4) {
+            sender.sendMessage("Uso: /npcs skin from-file <id> <path>");
+            return true;
+        }
+        File file = resolveSkinFile(join(args, 3));
+        registry.changeType(id, NpcEntityType.HUMAN);
+        registry.updateVisual(id, NpcSkinCodec.fromFile(file));
+        registry.setMetadata(id, "skinSource", "file");
+        registry.setMetadata(id, "skinFile", file.getPath());
+        sender.sendMessage("Skin aplicada desde archivo a: " + id);
         return true;
     }
 
@@ -221,6 +322,12 @@ public final class NpcCommand extends Command {
     }
 
     private String resolveId(Player player, String[] args, int index, String usage) {
+        if (player == null) {
+            if (args.length > index) {
+                return args[index];
+            }
+            throw new IllegalArgumentException(usage);
+        }
         if (args.length > index) {
             return args[index];
         }
@@ -230,5 +337,106 @@ public final class NpcCommand extends Command {
         }
         player.sendMessage(usage);
         return null;
+    }
+
+    private File resolveSkinFile(String rawPath) {
+        File file = new File(rawPath);
+        if (!file.isAbsolute()) {
+            file = new File(plugin.getDataFolder(), rawPath);
+        }
+        if (!file.exists() || !file.isFile()) {
+            throw new IllegalArgumentException("Archivo no encontrado: " + file.getPath());
+        }
+        return file;
+    }
+
+    private void configureAutocomplete() {
+        Supplier<java.util.Collection<String>> ids = () -> registry.all().stream().map(handle -> handle.profile().id()).toList();
+        Supplier<java.util.Collection<String>> behaviors = () -> {
+            java.util.List<String> values = new java.util.ArrayList<>();
+            for (NpcBehavior behavior : behaviorRegistry.all()) {
+                values.add(behavior.key());
+            }
+            return values;
+        };
+        Supplier<java.util.Collection<String>> traits = () -> {
+            java.util.List<String> values = new java.util.ArrayList<>();
+            for (dev.custom.npcs.api.NpcTrait trait : traitRegistry.all()) {
+                values.add(trait.key());
+            }
+            return values;
+        };
+        addCommandParameters("create", new CommandParameter[]{
+                CommandParameter.newEnum("create", new String[]{"create"}),
+                CommandParameter.newType("id", cn.nukkit.command.data.CommandParamType.STRING),
+                CommandParameter.newType("displayName", true, cn.nukkit.command.data.CommandParamType.TEXT)
+        });
+        addCommandParameters("remove", new CommandParameter[]{
+                CommandParameter.newEnum("remove", new String[]{"remove"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("spawn", new CommandParameter[]{
+                CommandParameter.newEnum("spawn", new String[]{"spawn"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("despawn", new CommandParameter[]{
+                CommandParameter.newEnum("despawn", new String[]{"despawn"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("rename", new CommandParameter[]{
+                CommandParameter.newEnum("rename", new String[]{"rename"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newType("name", cn.nukkit.command.data.CommandParamType.TEXT)
+        });
+        addCommandParameters("movehere", new CommandParameter[]{
+                CommandParameter.newEnum("movehere", new String[]{"movehere"}),
+                CommandParameter.newEnum("id", true, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("teleport", new CommandParameter[]{
+                CommandParameter.newEnum("teleport", new String[]{"teleport", "tp"}),
+                CommandParameter.newEnum("id", true, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("info", new CommandParameter[]{
+                CommandParameter.newEnum("info", new String[]{"info"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("select", new CommandParameter[]{
+                CommandParameter.newEnum("select", new String[]{"select"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids))
+        });
+        addCommandParameters("list", new CommandParameter[]{
+                CommandParameter.newEnum("list", new String[]{"list"})
+        });
+        addCommandParameters("type", new CommandParameter[]{
+                CommandParameter.newEnum("type", new String[]{"type"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newEnum("entityType", new String[]{"npc", "human"})
+        });
+        addCommandParameters("skinPlayer", new CommandParameter[]{
+                CommandParameter.newEnum("skin", new String[]{"skin"}),
+                CommandParameter.newEnum("mode", new String[]{"from-player"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newType("player", true, cn.nukkit.command.data.CommandParamType.TARGET)
+        });
+        addCommandParameters("skinFile", new CommandParameter[]{
+                CommandParameter.newEnum("skin", new String[]{"skin"}),
+                CommandParameter.newEnum("mode", new String[]{"from-file"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newType("path", cn.nukkit.command.data.CommandParamType.FILE_PATH)
+        });
+        addCommandParameters("trait", new CommandParameter[]{
+                CommandParameter.newEnum("trait", new String[]{"trait"}),
+                CommandParameter.newEnum("action", new String[]{"set"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newEnum("traitKey", false, new CommandEnum("npcTraits", traits)),
+                CommandParameter.newType("value", cn.nukkit.command.data.CommandParamType.STRING)
+        });
+        addCommandParameters("behavior", new CommandParameter[]{
+                CommandParameter.newEnum("behavior", new String[]{"behavior"}),
+                CommandParameter.newEnum("action", new String[]{"add"}),
+                CommandParameter.newEnum("id", false, new CommandEnum("npcIds", ids)),
+                CommandParameter.newEnum("behaviorKey", false, new CommandEnum("npcBehaviors", behaviors))
+        });
+        enableParamTree();
     }
 }

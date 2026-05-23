@@ -47,7 +47,7 @@ public final class NpcBootstrap implements AutoCloseable {
         NpcSelectionContext selectionContext = new NpcSelectionContext();
         Server server = plugin.getServer();
         server.getPluginManager().registerEvents(new NpcInteractionListener(registry, selectionContext), plugin);
-        server.getCommandMap().register("npcs", new NpcCommand(registry, selectionContext));
+        server.getCommandMap().register("npcs", new NpcCommand(plugin, registry, traitRegistry, behaviorRegistry, selectionContext));
         registry.spawnPersistent();
         taskHandler = server.getScheduler().scheduleRepeatingTask(plugin, registry::tick, 10);
     }

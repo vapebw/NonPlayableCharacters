@@ -1,6 +1,5 @@
 package dev.custom.npcs.presentation;
 
-import cn.nukkit.entity.passive.EntityNpc;
 import cn.nukkit.event.EventHandler;
 import cn.nukkit.event.EventPriority;
 import cn.nukkit.event.Listener;
@@ -20,21 +19,15 @@ public final class NpcInteractionListener implements Listener {
 
     @EventHandler(priority = EventPriority.NORMAL)
     public void onInteract(PlayerInteractEntityEvent event) {
-        if (!(event.getEntity() instanceof EntityNpc npc)) {
-            return;
-        }
-        registry.findByRuntimeId(npc.getId()).ifPresent(handle -> {
+        registry.findByRuntimeId(event.getEntity().getId()).ifPresent(handle -> {
             selectionContext.select(event.getPlayer().getUniqueId(), handle.profile().id());
-            registry.onInteract(event.getPlayer(), npc.getId());
+            registry.onInteract(event.getPlayer(), event.getEntity().getId());
         });
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDamage(EntityDamageEvent event) {
-        if (!(event.getEntity() instanceof EntityNpc npc)) {
-            return;
-        }
-        registry.findByRuntimeId(npc.getId()).ifPresent(handle -> {
+        registry.findByRuntimeId(event.getEntity().getId()).ifPresent(handle -> {
             if (handle.profile().flags().protectedFromDamage()) {
                 event.setCancelled();
             }
@@ -43,10 +36,7 @@ public final class NpcInteractionListener implements Listener {
 
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onDamageByEntity(EntityDamageByEntityEvent event) {
-        if (!(event.getEntity() instanceof EntityNpc npc)) {
-            return;
-        }
-        registry.findByRuntimeId(npc.getId()).ifPresent(handle -> {
+        registry.findByRuntimeId(event.getEntity().getId()).ifPresent(handle -> {
             if (handle.profile().flags().pushProtected()) {
                 event.setKnockBack(0);
                 event.setCancelled();
