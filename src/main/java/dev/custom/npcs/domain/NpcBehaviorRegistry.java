@@ -4,7 +4,7 @@ import cn.nukkit.Player;
 import cn.nukkit.level.Location;
 import dev.custom.npcs.api.NpcBehavior;
 import dev.custom.npcs.api.NpcHandle;
-import dev.custom.npcs.infrastructure.NpcEntityBridge;
+import dev.custom.npcs.infrastructure.NpcRuntimeBridge;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -48,7 +48,7 @@ public final class NpcBehaviorRegistry {
         }
 
         @Override
-        public void onTick(NpcHandle handle, NpcEntityBridge bridge) {
+        public void onTick(NpcHandle handle, NpcRuntimeBridge bridge) {
             Player nearest = bridge.nearestPlayer(8.0);
             if (nearest == null) {
                 return;

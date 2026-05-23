@@ -2,14 +2,15 @@ package dev.custom.npcs.infrastructure;
 
 import cn.nukkit.Player;
 import cn.nukkit.entity.Entity;
-import cn.nukkit.entity.passive.EntityNpc;
+import cn.nukkit.entity.EntityHuman;
+import cn.nukkit.entity.data.Skin;
 import cn.nukkit.level.Location;
 import dev.custom.npcs.api.NpcProfile;
 
-public final class NpcEntityBridge implements NpcRuntimeBridge {
-    private final EntityNpc entity;
+public final class HumanEntityBridge implements NpcRuntimeBridge {
+    private final EntityHuman entity;
 
-    public NpcEntityBridge(EntityNpc entity) {
+    public HumanEntityBridge(EntityHuman entity) {
         this.entity = entity;
     }
 
@@ -23,7 +24,7 @@ public final class NpcEntityBridge implements NpcRuntimeBridge {
         return entity;
     }
 
-    public EntityNpc npc() {
+    public EntityHuman human() {
         return entity;
     }
 
@@ -39,11 +40,11 @@ public final class NpcEntityBridge implements NpcRuntimeBridge {
         entity.setNameTagAlwaysVisible(profile.flags().nameVisible());
         entity.setImmobile(profile.flags().immobile());
         entity.setScale(1.0f);
-        if (!profile.visual().skinData().isEmpty()) {
-            entity.getDialog().setSkinData(profile.visual().skinData());
-        }
-        entity.setDataProperty(cn.nukkit.entity.Entity.INTERACT_TEXT, profile.metadata().getOrDefault("interact_text", profile.displayName()));
         entity.setRotation(profile.location().yaw(), profile.location().pitch());
+        if (!profile.visual().skinData().isEmpty()) {
+            Skin skin = NpcSkinCodec.decode(profile.visual());
+            entity.setSkin(skin);
+        }
     }
 
     @Override

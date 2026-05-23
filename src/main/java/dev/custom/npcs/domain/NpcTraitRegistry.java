@@ -3,7 +3,7 @@ package dev.custom.npcs.domain;
 import dev.custom.npcs.api.NpcFlags;
 import dev.custom.npcs.api.NpcProfile;
 import dev.custom.npcs.api.NpcTrait;
-import dev.custom.npcs.infrastructure.NpcEntityBridge;
+import dev.custom.npcs.infrastructure.NpcRuntimeBridge;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -79,7 +79,7 @@ public final class NpcTraitRegistry {
         }
 
         @Override
-        public void applyToBridge(NpcProfile profile, NpcEntityBridge bridge) {
+        public void applyToBridge(NpcProfile profile, NpcRuntimeBridge bridge) {
             bridge.apply(profile);
         }
 

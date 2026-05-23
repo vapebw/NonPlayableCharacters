@@ -3,7 +3,7 @@ package dev.custom.npcs.application;
 import cn.nukkit.Player;
 import dev.custom.npcs.api.NpcHandle;
 import dev.custom.npcs.api.NpcProfile;
-import dev.custom.npcs.infrastructure.NpcEntityBridge;
+import dev.custom.npcs.infrastructure.NpcRuntimeBridge;
 
 import java.util.Optional;
 
@@ -34,7 +34,7 @@ public final class NoopNpcRuntime implements NpcRuntime {
     }
 
     @Override
-    public Optional<NpcEntityBridge> bridge(String id) {
+    public Optional<NpcRuntimeBridge> bridge(String id) {
         return Optional.empty();
     }
 

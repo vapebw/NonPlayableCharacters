@@ -3,7 +3,7 @@ package dev.custom.npcs.application;
 import cn.nukkit.Player;
 import dev.custom.npcs.api.NpcHandle;
 import dev.custom.npcs.api.NpcProfile;
-import dev.custom.npcs.infrastructure.NpcEntityBridge;
+import dev.custom.npcs.infrastructure.NpcRuntimeBridge;
 
 import java.util.Optional;
 
@@ -18,7 +18,7 @@ public interface NpcRuntime {
 
     Optional<NpcHandle> findByRuntimeId(long runtimeId);
 
-    Optional<NpcEntityBridge> bridge(String id);
+    Optional<NpcRuntimeBridge> bridge(String id);
 
     void onInteract(Player player, long runtimeId);
 
