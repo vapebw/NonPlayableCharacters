@@ -1,6 +1,7 @@
 package dev.custom.npcs.infrastructure;
 
 import dev.custom.npcs.api.NpcFlags;
+import dev.custom.npcs.api.NpcEntityType;
 import dev.custom.npcs.api.NpcLocation;
 import dev.custom.npcs.api.NpcProfile;
 import dev.custom.npcs.api.NpcVisualProfile;
@@ -24,12 +25,13 @@ public class YamlNpcRepositoryTest {
         NpcProfile profile = new NpcProfile(
                 "guide",
                 "Guide",
+                NpcEntityType.HUMAN,
                 new NpcLocation("spawn", 10.0, 64.0, 10.0, 180.0f, 0.0f),
-                new NpcVisualProfile("skin:guide", "guide", "default", "skin-payload"),
+                new NpcVisualProfile("skin:guide", "geometry.humanoid.custom", "{\"format_version\":\"1.12.0\"}", "skin-payload", "{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}"),
                 new NpcFlags(true, true, true, true, true),
                 Map.of("look_at_player", "true", "visible_name", "true"),
                 Set.of("idle", "click_action"),
-                Map.of("scene", "spawn")
+                Map.of("scene", "spawn", "skinSource", "file")
         );
 
         repository.save(profile);
@@ -38,8 +40,10 @@ public class YamlNpcRepositoryTest {
 
         assertEquals(1, loaded.size());
         assertEquals("guide", loaded.get(0).id());
+        assertEquals(NpcEntityType.HUMAN, loaded.get(0).entityType());
         assertEquals("skin:guide", loaded.get(0).visual().skinId());
+        assertEquals("{\"geometry\":{\"default\":\"geometry.humanoid.custom\"}}", loaded.get(0).visual().skinResourcePatch());
         assertTrue(loaded.get(0).behaviors().contains("click_action"));
-        assertEquals("spawn", loaded.get(0).metadata().get("scene"));
+        assertEquals("file", loaded.get(0).metadata().get("skinSource"));
     }
 }

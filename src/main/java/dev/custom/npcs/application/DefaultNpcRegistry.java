@@ -3,11 +3,13 @@ package dev.custom.npcs.application;
 import dev.custom.npcs.api.NpcBehavior;
 import dev.custom.npcs.api.NpcFactory;
 import dev.custom.npcs.api.NpcHandle;
+import dev.custom.npcs.api.NpcEntityType;
 import dev.custom.npcs.api.NpcLocation;
 import dev.custom.npcs.api.NpcProfile;
 import dev.custom.npcs.api.NpcRegistry;
 import dev.custom.npcs.api.NpcRepository;
 import dev.custom.npcs.api.NpcTrait;
+import dev.custom.npcs.api.NpcVisualProfile;
 import dev.custom.npcs.domain.NpcBehaviorRegistry;
 import dev.custom.npcs.domain.NpcInteractionRegistry;
 import dev.custom.npcs.domain.NpcTraitRegistry;
@@ -87,6 +89,21 @@ public final class DefaultNpcRegistry implements NpcRegistry {
     }
 
     @Override
+    public NpcHandle changeType(String id, NpcEntityType entityType) {
+        return updateProfile(id, profile -> factory.withType(profile, entityType));
+    }
+
+    @Override
+    public NpcHandle updateVisual(String id, NpcVisualProfile visual) {
+        return updateProfile(id, profile -> profile.withVisual(visual));
+    }
+
+    @Override
+    public NpcHandle setMetadata(String id, String key, String value) {
+        return updateProfile(id, profile -> profile.withMetadata(key, value));
+    }
+
+    @Override
     public NpcHandle setTrait(String id, String traitKey, String value) {
         NpcTrait trait = traitRegistry.require(traitKey);
         return updateProfile(id, profile -> trait.apply(profile, value));
@@ -148,6 +165,10 @@ public final class DefaultNpcRegistry implements NpcRegistry {
 
     public void onInteract(cn.nukkit.Player player, long runtimeId) {
         runtime.onInteract(player, runtimeId);
+    }
+
+    public NpcProfile profile(String id) {
+        return requireProfile(id);
     }
 
     private NpcHandle updateProfile(String id, java.util.function.UnaryOperator<NpcProfile> updater) {

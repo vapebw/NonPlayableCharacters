@@ -2,6 +2,7 @@ package dev.custom.npcs.infrastructure;
 
 import cn.nukkit.utils.Config;
 import dev.custom.npcs.api.NpcFlags;
+import dev.custom.npcs.api.NpcEntityType;
 import dev.custom.npcs.api.NpcLocation;
 import dev.custom.npcs.api.NpcProfile;
 import dev.custom.npcs.api.NpcRepository;
@@ -76,6 +77,7 @@ public final class YamlNpcRepository implements NpcRepository {
         return new NpcProfile(
                 id,
                 string(node.get("displayName")),
+                entityType(node.get("entityType")),
                 new NpcLocation(
                         string(location.get("world")),
                         number(location.get("x")),
@@ -88,7 +90,8 @@ public final class YamlNpcRepository implements NpcRepository {
                         string(visual.get("skinId")),
                         string(visual.get("geometryName")),
                         string(visual.get("geometryData")),
-                        string(visual.get("skinData"))
+                        string(visual.get("skinData")),
+                        string(visual.get("skinResourcePatch"))
                 ),
                 new NpcFlags(
                         bool(flags.get("immobile")),
@@ -106,6 +109,7 @@ public final class YamlNpcRepository implements NpcRepository {
     private Map<String, Object> writeProfile(NpcProfile profile) {
         Map<String, Object> node = new LinkedHashMap<>();
         node.put("displayName", profile.displayName());
+        node.put("entityType", profile.entityType().id());
         node.put("location", Map.of(
                 "world", profile.location().world(),
                 "x", profile.location().x(),
@@ -118,7 +122,8 @@ public final class YamlNpcRepository implements NpcRepository {
                 "skinId", profile.visual().skinId(),
                 "geometryName", profile.visual().geometryName(),
                 "geometryData", profile.visual().geometryData(),
-                "skinData", profile.visual().skinData()
+                "skinData", profile.visual().skinData(),
+                "skinResourcePatch", profile.visual().skinResourcePatch()
         ));
         node.put("flags", Map.of(
                 "immobile", profile.flags().immobile(),
@@ -184,6 +189,11 @@ public final class YamlNpcRepository implements NpcRepository {
 
     private boolean bool(Object value) {
         return value instanceof Boolean flag ? flag : Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private NpcEntityType entityType(Object value) {
+        String raw = string(value);
+        return raw.isEmpty() ? NpcEntityType.NPC : NpcEntityType.parse(raw);
     }
 
     private Map<String, Object> cast(Map<?, ?> raw) {

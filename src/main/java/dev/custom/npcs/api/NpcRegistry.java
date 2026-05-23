@@ -17,6 +17,12 @@ public interface NpcRegistry {
 
     NpcHandle move(String id, NpcLocation location);
 
+    NpcHandle changeType(String id, NpcEntityType entityType);
+
+    NpcHandle updateVisual(String id, NpcVisualProfile visual);
+
+    NpcHandle setMetadata(String id, String key, String value);
+
     NpcHandle setTrait(String id, String traitKey, String value);
 
     NpcHandle addBehavior(String id, String behaviorKey);

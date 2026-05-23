@@ -2,6 +2,7 @@ package dev.custom.npcs.application;
 
 import dev.custom.npcs.api.NpcFactory;
 import dev.custom.npcs.api.NpcFlags;
+import dev.custom.npcs.api.NpcEntityType;
 import dev.custom.npcs.api.NpcLocation;
 import dev.custom.npcs.api.NpcProfile;
 import dev.custom.npcs.api.NpcRepository;
@@ -37,6 +38,9 @@ public class DefaultNpcRegistryTest {
 
         registry.create("guide", "Guide", new NpcLocation("spawn", 1.0, 65.0, 1.0, 0.0f, 0.0f));
         registry.rename("guide", "Guide Prime");
+        registry.changeType("guide", NpcEntityType.HUMAN);
+        registry.updateVisual("guide", new NpcVisualProfile("skin:guide", "geometry.humanoid.custom", "geometry", "skin", "patch"));
+        registry.setMetadata("guide", "skinSource", "player");
         registry.setTrait("guide", "look_at_player", "true");
         registry.addBehavior("guide", "click_action");
         registry.saveAll();
@@ -44,6 +48,9 @@ public class DefaultNpcRegistryTest {
         assertEquals(1, repository.saved.size());
         NpcProfile profile = repository.saved.get("guide");
         assertEquals("Guide Prime", profile.displayName());
+        assertEquals(NpcEntityType.HUMAN, profile.entityType());
+        assertEquals("skin:guide", profile.visual().skinId());
+        assertEquals("player", profile.metadata().get("skinSource"));
         assertEquals("true", profile.traits().get("look_at_player"));
         assertTrue(profile.behaviors().contains("click_action"));
     }
@@ -69,10 +76,35 @@ public class DefaultNpcRegistryTest {
         }
     }
 
+    @Test
+    public void returnsStoredProfileWhenRuntimeCannotResolveIt() {
+        InMemoryRepository repository = new InMemoryRepository();
+        DefaultNpcRegistry registry = new DefaultNpcRegistry(
+                repository,
+                new SimpleFactory(),
+                new NpcTraitRegistry(),
+                new NpcBehaviorRegistry(),
+                new NpcInteractionRegistry(),
+                new NoopNpcRuntime()
+        );
+
+        registry.create("guide", "Guide", new NpcLocation("spawn", 1.0, 65.0, 1.0, 0.0f, 0.0f));
+
+        NpcProfile profile = registry.profile("guide");
+
+        assertEquals("guide", profile.id());
+        assertEquals("Guide", profile.displayName());
+    }
+
     private static final class SimpleFactory implements NpcFactory {
         @Override
         public NpcProfile createProfile(String id, String displayName, NpcLocation location) {
-            return new NpcProfile(id, displayName, location, NpcVisualProfile.empty(), NpcFlags.defaults(), Map.of(), Set.of(), Map.of());
+            return new NpcProfile(id, displayName, NpcEntityType.NPC, location, NpcVisualProfile.empty(), NpcFlags.defaults(), Map.of(), Set.of(), Map.of());
+        }
+
+        @Override
+        public NpcProfile withType(NpcProfile profile, NpcEntityType entityType) {
+            return profile.withEntityType(entityType);
         }
     }
 

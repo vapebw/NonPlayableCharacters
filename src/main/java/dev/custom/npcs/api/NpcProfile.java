@@ -8,6 +8,7 @@ import java.util.Set;
 public record NpcProfile(
         String id,
         String displayName,
+        NpcEntityType entityType,
         NpcLocation location,
         NpcVisualProfile visual,
         NpcFlags flags,
@@ -22,36 +23,40 @@ public record NpcProfile(
     }
 
     public NpcProfile withDisplayName(String value) {
-        return new NpcProfile(id, value, location, visual, flags, traits, behaviors, metadata);
+        return new NpcProfile(id, value, entityType, location, visual, flags, traits, behaviors, metadata);
+    }
+
+    public NpcProfile withEntityType(NpcEntityType value) {
+        return new NpcProfile(id, displayName, value, location, visual, flags, traits, behaviors, metadata);
     }
 
     public NpcProfile withLocation(NpcLocation value) {
-        return new NpcProfile(id, displayName, value, visual, flags, traits, behaviors, metadata);
+        return new NpcProfile(id, displayName, entityType, value, visual, flags, traits, behaviors, metadata);
     }
 
     public NpcProfile withVisual(NpcVisualProfile value) {
-        return new NpcProfile(id, displayName, location, value, flags, traits, behaviors, metadata);
+        return new NpcProfile(id, displayName, entityType, location, value, flags, traits, behaviors, metadata);
     }
 
     public NpcProfile withFlags(NpcFlags value) {
-        return new NpcProfile(id, displayName, location, visual, value, traits, behaviors, metadata);
+        return new NpcProfile(id, displayName, entityType, location, visual, value, traits, behaviors, metadata);
     }
 
     public NpcProfile withTrait(String key, String value) {
         Map<String, String> next = new LinkedHashMap<>(traits);
         next.put(key, value);
-        return new NpcProfile(id, displayName, location, visual, flags, next, behaviors, metadata);
+        return new NpcProfile(id, displayName, entityType, location, visual, flags, next, behaviors, metadata);
     }
 
     public NpcProfile withBehavior(String key) {
         Set<String> next = new LinkedHashSet<>(behaviors);
         next.add(key);
-        return new NpcProfile(id, displayName, location, visual, flags, traits, next, metadata);
+        return new NpcProfile(id, displayName, entityType, location, visual, flags, traits, next, metadata);
     }
 
     public NpcProfile withMetadata(String key, String value) {
         Map<String, String> next = new LinkedHashMap<>(metadata);
         next.put(key, value);
-        return new NpcProfile(id, displayName, location, visual, flags, traits, behaviors, next);
+        return new NpcProfile(id, displayName, entityType, location, visual, flags, traits, behaviors, next);
     }
 }
