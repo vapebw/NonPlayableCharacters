@@ -9,7 +9,8 @@ It is designed to work both as a standalone plugin and as a reusable foundation 
 - Clean public API for other plugins
 - Persistent NPC storage in YAML
 - Built-in `/npcs` command tree
-- Runtime built on top of PowerNukkitX `EntityNpc`
+- Built-in `/npcs manage` Forms workflow
+- Runtime router for `EntityNpc`, `EntityHuman` and selected mobs
 - Extensible traits and behaviors
 - Player-based NPC selection flow for fast editing
 - Layered structure focused on long-term maintainability
@@ -17,7 +18,11 @@ It is designed to work both as a standalone plugin and as a reusable foundation 
 ## Features
 
 - Create, spawn, despawn, move, rename and remove NPCs
+- Manage NPCs through in-game Forms
+- Create NPC, human and mob variants
 - Store NPC identity, location, traits, behaviors and metadata
+- Apply skins from players or PNG files
+- Configure supported mob variants without re-creating the NPC
 - Register custom interactions from external plugins
 - Apply built-in traits such as visibility, look-at-player and immobility
 - Attach built-in behaviors such as idle, click action and look-at-player
@@ -25,7 +30,9 @@ It is designed to work both as a standalone plugin and as a reusable foundation 
 ## Commands
 
 ```text
-/npcs create <id> [displayName]
+/npcs
+/npcs manage [id]
+/npcs create <id> [type] [mobType] [displayName]
 /npcs remove <id>
 /npcs spawn <id>
 /npcs despawn <id>
@@ -35,9 +42,15 @@ It is designed to work both as a standalone plugin and as a reusable foundation 
 /npcs list
 /npcs info <id>
 /npcs select <id>
+/npcs type <id> <npc|human|mob>
+/npcs mob <id> <mobType>
+/npcs skin from-player <id> [player]
+/npcs skin from-file <id> <path>
 /npcs trait set <id> <trait> <value>
 /npcs behavior add <id> <behavior>
 ```
+
+For players, running `/npcs` with no arguments opens the main management form.
 
 ## Public API
 
@@ -65,6 +78,7 @@ NpcApi api = provider.getProvider();
 
 ```java
 import dev.custom.npcs.api.NpcLocation;
+import dev.custom.npcs.api.NpcEntityType;
 
 api.registry().create(
         "guide",
@@ -77,6 +91,19 @@ api.registry().setTrait("guide", "look_at_player", "true");
 api.registry().addBehavior("guide", "idle");
 api.registry().addBehavior("guide", "click_action");
 api.registry().spawn("guide");
+```
+
+### Turn an NPC into a human or mob
+
+```java
+import dev.custom.npcs.api.NpcEntityType;
+
+api.registry().changeType("guide", NpcEntityType.HUMAN);
+api.registry().setMetadata("guide", "skinSource", "player");
+
+api.registry().changeType("guard", NpcEntityType.MOB);
+api.registry().setMetadata("guard", "mobType", "zombie");
+api.registry().spawn("guard");
 ```
 
 ### Move or rename an existing NPC
@@ -95,6 +122,10 @@ api.registry().find("guide").ifPresent(handle -> {
     boolean spawned = handle.spawned();
 });
 ```
+
+### Open the in-game manager from another plugin
+
+The built-in Forms manager is primarily exposed through `/npcs` and `/npcs manage`, but your plugin can still drive the public API and let server staff use the built-in UI for live editing.
 
 ### Register a custom interaction
 
@@ -132,6 +163,21 @@ To connect that interaction to an NPC in the current implementation, store an in
 - `look_at_player`
 - `click_action`
 
+## Supported Entity Types
+
+- `npc`
+- `human`
+- `mob`
+
+## Supported Mob Types
+
+- `zombie`
+- `skeleton`
+- `creeper`
+- `spider`
+- `cow`
+- `pig`
+
 ## Project Layout
 
 - `api`: public contracts intended for plugin developers
@@ -139,6 +185,7 @@ To connect that interaction to an NPC in the current implementation, store an in
 - `domain`: trait and behavior registries
 - `infrastructure`: YAML persistence and PowerNukkitX bridge layer
 - `presentation`: commands, listeners and selection flow
+- `presentation`: commands, forms, listeners and selection flow
 
 ## Developer Notes
 

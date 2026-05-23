@@ -17,6 +17,7 @@ import dev.custom.npcs.domain.NpcTraitRegistry;
 import dev.custom.npcs.infrastructure.PowerNukkitNpcRuntime;
 import dev.custom.npcs.infrastructure.YamlNpcRepository;
 import dev.custom.npcs.presentation.NpcCommand;
+import dev.custom.npcs.presentation.NpcManageForms;
 import dev.custom.npcs.presentation.NpcInteractionListener;
 import dev.custom.npcs.presentation.NpcSelectionContext;
 
@@ -45,9 +46,10 @@ public final class NpcBootstrap implements AutoCloseable {
         NpcApi api = new DefaultNpcApi(registry, factory, traitRegistry, behaviorRegistry, interactionRegistry);
         plugin.getServer().getServiceManager().register(NpcApi.class, api, plugin, ServicePriority.NORMAL);
         NpcSelectionContext selectionContext = new NpcSelectionContext();
+        NpcManageForms manageForms = new NpcManageForms(plugin, registry, traitRegistry, behaviorRegistry, selectionContext);
         Server server = plugin.getServer();
         server.getPluginManager().registerEvents(new NpcInteractionListener(registry, selectionContext), plugin);
-        server.getCommandMap().register("npcs", new NpcCommand(plugin, registry, traitRegistry, behaviorRegistry, selectionContext));
+        server.getCommandMap().register("npcs", new NpcCommand(plugin, registry, traitRegistry, behaviorRegistry, selectionContext, manageForms));
         registry.spawnPersistent();
         taskHandler = server.getScheduler().scheduleRepeatingTask(plugin, registry::tick, 10);
     }

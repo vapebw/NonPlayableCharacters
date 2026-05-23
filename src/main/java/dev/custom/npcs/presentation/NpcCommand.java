@@ -28,14 +28,16 @@ public final class NpcCommand extends Command {
     private final NpcTraitRegistry traitRegistry;
     private final NpcBehaviorRegistry behaviorRegistry;
     private final NpcSelectionContext selectionContext;
+    private final NpcManageForms manageForms;
 
-    public NpcCommand(PluginBase plugin, DefaultNpcRegistry registry, NpcTraitRegistry traitRegistry, NpcBehaviorRegistry behaviorRegistry, NpcSelectionContext selectionContext) {
+    public NpcCommand(PluginBase plugin, DefaultNpcRegistry registry, NpcTraitRegistry traitRegistry, NpcBehaviorRegistry behaviorRegistry, NpcSelectionContext selectionContext, NpcManageForms manageForms) {
         super("npcs", "Manage NPCs", "/npcs", new String[0]);
         this.plugin = plugin;
         this.registry = registry;
         this.traitRegistry = traitRegistry;
         this.behaviorRegistry = behaviorRegistry;
         this.selectionContext = selectionContext;
+        this.manageForms = manageForms;
         setPermission("npcs.command.use");
         configureAutocomplete();
     }
@@ -46,6 +48,10 @@ public final class NpcCommand extends Command {
             return true;
         }
         if (args.length == 0) {
+            if (sender instanceof Player player) {
+                manageForms.openMain(player);
+                return true;
+            }
             sender.sendMessage("/npcs create <id> [type] [displayName]");
             sender.sendMessage("/npcs remove <id>");
             sender.sendMessage("/npcs spawn <id>");
@@ -76,6 +82,7 @@ public final class NpcCommand extends Command {
                 case "list" -> list(sender);
                 case "info" -> info(sender, args);
                 case "select" -> select(sender, args);
+                case "manage" -> manage(sender, args);
                 case "type" -> type(sender, args);
                 case "mob" -> mob(sender, args);
                 case "skin" -> skin(sender, args);
@@ -101,9 +108,17 @@ public final class NpcCommand extends Command {
         String id = args[1];
         int nameIndex = 2;
         NpcEntityType entityType = NpcEntityType.NPC;
+        String mobType = MobCatalog.defaultMobType();
         if (args.length >= 3 && isEntityType(args[2])) {
             entityType = NpcEntityType.parse(args[2]);
             nameIndex = 3;
+        }
+        if (entityType == NpcEntityType.MOB && args.length > nameIndex) {
+            try {
+                mobType = MobCatalog.normalize(args[nameIndex]);
+                nameIndex++;
+            } catch (IllegalArgumentException ignored) {
+            }
         }
         String displayName = args.length > nameIndex ? join(args, nameIndex) : id;
         registry.create(id, displayName, fromPlayer(player));
@@ -111,7 +126,7 @@ public final class NpcCommand extends Command {
             registry.changeType(id, entityType);
         }
         if (entityType == NpcEntityType.MOB) {
-            registry.setMetadata(id, "mobType", MobCatalog.defaultMobType());
+            registry.setMetadata(id, "mobType", mobType);
         }
         registry.spawn(id);
         selectionContext.select(player.getUniqueId(), id);
@@ -252,6 +267,16 @@ public final class NpcCommand extends Command {
             registry.setMetadata(id, "mobType", registry.profile(id).metadata().getOrDefault("mobType", MobCatalog.defaultMobType()));
         }
         sender.sendMessage("Tipo actualizado para: " + id + " -> " + entityType.id());
+        return true;
+    }
+
+    private boolean manage(CommandSender sender, String[] args) {
+        Player player = requirePlayer(sender);
+        if (args.length >= 2) {
+            registry.find(args[1]).orElseThrow(() -> new IllegalArgumentException("NPC no encontrado: " + args[1]));
+            selectionContext.select(player.getUniqueId(), args[1]);
+        }
+        manageForms.openSelected(player);
         return true;
     }
 
@@ -446,6 +471,10 @@ public final class NpcCommand extends Command {
         });
         addCommandParameters("list", new CommandParameter[]{
                 CommandParameter.newEnum("list", new String[]{"list"})
+        });
+        addCommandParameters("manage", new CommandParameter[]{
+                CommandParameter.newEnum("manage", new String[]{"manage"}),
+                CommandParameter.newEnum("id", true, new CommandEnum("npcIds", ids))
         });
         addCommandParameters("type", new CommandParameter[]{
                 CommandParameter.newEnum("type", new String[]{"type"}),
